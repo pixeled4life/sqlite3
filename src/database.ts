@@ -809,6 +809,10 @@ export class Database {
   [Symbol.for("Deno.customInspect")](): string {
     return `SQLite3.Database { path: ${this.path} }`;
   }
+
+  [Symbol.dispose](): void {
+    this.close();
+  }
 }
 
 const controllers = new WeakMap();
