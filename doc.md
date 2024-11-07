@@ -15,7 +15,9 @@ pass `create: false` in the options.
 - `memory: boolean` - Whether to open the database in memory. Defaults to
   `false`.
 - `int64: boolean` - Whether to support BigInt columns. False by default, which
-  means integers larger than 32 bit will be inaccurate.
+  means integers larger than 52 bit will throw or be inaccurate.
+- `truncate: boolean` - Whether to truncate larger numbers or just throw, has no
+  effect if int64 is true.
 - `flags: number` - Raw flags to pass to the C API. Normally you don't need
   this. Passing this ignores all other options.
 - `unsafeConcurrency: boolean` - Enable optimizations that will affect

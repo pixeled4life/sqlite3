@@ -29,7 +29,7 @@ export interface DatabaseOpenOptions {
   flags?: number;
   /** Opens an in-memory database. */
   memory?: boolean;
-  /** Whether to return BigInt columns. False by default, integers larger than Number.MAX_SAFE_INTEGER will throw or be truncated */
+  /** Whether to return BigInt columns. False by default, integers larger than 52 bit will throw or be inaccurate. */
   int64?: boolean;
   /** Whether to truncate larger numbers or just throw, has no effect if int64 is true */
   truncate?: boolean;
@@ -152,7 +152,7 @@ export class Database {
   #open = true;
   #enableLoadExtension = false;
 
-  /** Whether to return BigInt columns. False by default, integers larger than Number.MAX_SAFE_INTEGER will throw or be truncated */
+  /** Whether to return BigInt columns. False by default, integers larger than 52 bit will throw or be inaccurate */
   int64: boolean;
   /** Whether to truncate larger numbers or just throw, has no effect if int64 is true */
   truncate: boolean;
