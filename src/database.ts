@@ -29,8 +29,10 @@ export interface DatabaseOpenOptions {
   flags?: number;
   /** Opens an in-memory database. */
   memory?: boolean;
-  /** Whether to support BigInt columns. False by default, integers larger than 32 bit will be inaccurate. */
+  /** Whether to return BigInt columns. False by default, integers larger than Number.MAX_SAFE_INTEGER will throw or be truncated */
   int64?: boolean;
+  /** Whether to truncate larger numbers or just throw, has no effect if int64 is true */
+  truncate?: boolean;
   /** Apply agressive optimizations that are not possible with concurrent clients. */
   unsafeConcurrency?: boolean;
   /** Enable or disable extension loading */
@@ -150,8 +152,10 @@ export class Database {
   #open = true;
   #enableLoadExtension = false;
 
-  /** Whether to support BigInt columns. False by default, integers larger than 32 bit will be inaccurate. */
+  /** Whether to return BigInt columns. False by default, integers larger than Number.MAX_SAFE_INTEGER will throw or be truncated */
   int64: boolean;
+  /** Whether to truncate larger numbers or just throw, has no effect if int64 is true */
+  truncate: boolean;
 
   unsafeConcurrency: boolean;
 
@@ -214,6 +218,7 @@ export class Database {
     this.#path = path instanceof URL ? fromFileUrl(path) : path;
     let flags = 0;
     this.int64 = options.int64 ?? false;
+    this.truncate = options.truncate ?? false;
     this.unsafeConcurrency = options.unsafeConcurrency ?? false;
     if (options.flags !== undefined) {
       flags = options.flags;
