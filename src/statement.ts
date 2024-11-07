@@ -38,7 +38,6 @@ const {
   sqlite3_stmt_readonly,
   sqlite3_bind_parameter_name,
   sqlite3_changes,
-  sqlite3_column_int,
 } = ffi;
 
 /** Types that can be possibly serialized as SQLite bind values */
@@ -76,11 +75,10 @@ const statementFinalizer = new FinalizationRegistry(
 const JSON_SUBTYPE = 74;
 
 const BIG_MAX = BigInt(Number.MAX_SAFE_INTEGER);
+const BIG_MIN = BigInt(Number.MIN_SAFE_INTEGER);
 
-function getColumn(handle: Deno.PointerValue, i: number, int64: boolean): any {
+function getColumn(handle: Deno.PointerValue, i: number, int64: boolean, truncate: boolean): any {
   const ty = sqlite3_column_type(handle, i);
-
-  if (ty === SQLITE_INTEGER && !int64) return sqlite3_column_int(handle, i);
 
   switch (ty) {
     case SQLITE_TEXT: {
@@ -101,8 +99,10 @@ function getColumn(handle: Deno.PointerValue, i: number, int64: boolean): any {
 
     case SQLITE_INTEGER: {
       const val = sqlite3_column_int64(handle, i);
-      if (val < -BIG_MAX || val > BIG_MAX) {
-        return val;
+      if (int64) return val;
+      if (val < BIG_MIN || val > BIG_MAX) {
+        if (truncate) return Number(BigInt.asIntN(53, val));
+        throw new Error("Number value too high to fit in a Number, use { int64: true } to return a BigInt or { truncate: true } to truncate the value to 52 bits");
       }
       return Number(val);
     }
@@ -557,6 +557,7 @@ export class Statement {
   ): T | undefined {
     const handle = this.#handle;
     const int64 = this.db.int64;
+    const truncate = this.db.truncate;
     const arr = new Array(sqlite3_column_count(handle));
     sqlite3_reset(handle);
     if (!this.#hasNoArgs && !this.#bound) {
@@ -575,7 +576,7 @@ export class Statement {
 
     if (status === SQLITE3_ROW) {
       for (let i = 0; i < arr.length; i++) {
-        arr[i] = getColumn(handle, i, int64);
+        arr[i] = getColumn(handle, i, int64, truncate);
       }
       sqlite3_reset(this.#handle);
       return arr as T;
@@ -589,13 +590,14 @@ export class Statement {
   #valueNoArgs<T extends Array<unknown>>(): T | undefined {
     const handle = this.#handle;
     const int64 = this.db.int64;
+    const truncate = this.db.truncate;
     const cc = sqlite3_column_count(handle);
     const arr = new Array(cc);
     sqlite3_reset(handle);
     const status = sqlite3_step(handle);
     if (status === SQLITE3_ROW) {
       for (let i = 0; i < cc; i++) {
-        arr[i] = getColumn(handle, i, int64);
+        arr[i] = getColumn(handle, i, int64, truncate);
       }
       sqlite3_reset(this.#handle);
       return arr as T;
@@ -631,6 +633,7 @@ export class Statement {
   ): T | undefined {
     const handle = this.#handle;
     const int64 = this.db.int64;
+    const truncate = this.db.truncate;
 
     const columnNames = this.columnNames();
 
@@ -652,7 +655,7 @@ export class Statement {
 
     if (status === SQLITE3_ROW) {
       for (let i = 0; i < columnNames.length; i++) {
-        row[columnNames[i]] = getColumn(handle, i, int64);
+        row[columnNames[i]] = getColumn(handle, i, int64, truncate);
       }
       sqlite3_reset(this.#handle);
       return row as T;
@@ -666,13 +669,14 @@ export class Statement {
   #getNoArgs<T extends object>(): T | undefined {
     const handle = this.#handle;
     const int64 = this.db.int64;
+    const truncate = this.db.truncate;
     const columnNames = this.columnNames();
     const row: Record<string, unknown> = this.#rowObject;
     sqlite3_reset(handle);
     const status = sqlite3_step(handle);
     if (status === SQLITE3_ROW) {
       for (let i = 0; i < columnNames?.length; i++) {
-        row[columnNames[i]] = getColumn(handle, i, int64);
+        row[columnNames[i]] = getColumn(handle, i, int64, truncate);
       }
       sqlite3_reset(handle);
       return row as T;
